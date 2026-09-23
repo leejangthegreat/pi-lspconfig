@@ -1,0 +1,31 @@
+{
+	"compilerOptions": {
+		"target": "ES2023",
+		"lib": ["ES2023"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"moduleDetection": "force",
+		"types": ["node"],
+
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": false,
+
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+
+		"paths": {
+			"pi-lspconfig": ["./src/index.ts"]
+		}
+	},
+	"include": ["src/**/*.ts", "examples/**/*.ts", "tests/**/*.ts"],
+	"exclude": ["node_modules", "tests/fixtures"]
+}

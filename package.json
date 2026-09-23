@@ -1,0 +1,70 @@
+{
+	"name": "pi-lspconfig",
+	"version": "0.0.1",
+	"type": "module",
+	"description": "Language Server Protocol support for pi — out-of-the-box per-language LSP configs, user-overridable, behind one unified tool.",
+	"license": "MIT",
+	"keywords": [
+		"pi",
+		"pi-extension",
+		"pi-package",
+		"lsp",
+		"lspconfig",
+		"language-server",
+		"code-intelligence",
+		"diagnostics"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"files": [
+		"src/",
+		"docs/",
+		"examples/",
+		"scripts/",
+		"README.md",
+		"ROADMAP.md",
+		"AGENTS.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"docs:languages": "node scripts/gen-language-docs.mjs"
+	},
+	"dependencies": {
+		"jiti": "^2.7.0",
+		"vscode-jsonrpc": "^9.0.2"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*",
+		"typebox": "*"
+	},
+	"peerDependenciesMeta": {
+		"@earendil-works/pi-coding-agent": {
+			"optional": true
+		},
+		"typebox": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@earendil-works/pi-coding-agent": "^0.87.1",
+		"@types/node": "^26.0.0",
+		"typebox": "^1.3.34",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.1"
+	}
+}
