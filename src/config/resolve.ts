@@ -11,7 +11,7 @@
 import { EXTENSION_TO_LANGUAGE_ID } from "../languages/index.ts";
 import type { LspServerSpec, LspServerSpecInput, LspconfigUserConfig, ServerTable } from "../types.ts";
 import { collectDeletedKeys, deepMerge } from "../util/merge.ts";
-import { DEFAULT_MAX_RESULTS } from "./defaults.ts";
+import { DEFAULT_MAX_RESULTS } from "../util/defaults.ts";
 
 export interface ResolvedConfig {
 	/** Merged servers, keyed by id. Disabled servers are excluded. */

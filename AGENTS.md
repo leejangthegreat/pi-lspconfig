@@ -115,10 +115,18 @@ a v22+ binary.
 ## Current state
 
 The repository is a **scaffold**. The extension adapter, config schema, language
-catalog, and types are real, and milestone M0 is complete: `util/merge.ts`,
-`config/resolve.ts`, and `config/load.ts` are implemented. Everything in
-`core/`, the tool `execute` bodies, and the command handlers still throw
-`Not implemented` and are scheduled in `ROADMAP.md` (M1–M6).
+catalog, and types are real. Milestones M0 and M1 are complete:
+
+- **M0** — `util/merge.ts`, `config/resolve.ts`, and `config/load.ts`, plus the
+  shared constants in `util/defaults.ts` (relocated out of `config/` so `core/`
+  never has to import `config/`).
+- **M1** — the LSP client: `util/text.ts` position conversion and
+  `core/client/{launch,connection,initialize,sync,diagnostics}.ts`, exercised
+  against `tests/fixtures/fake-lsp-server.mjs`.
+
+The rest of `core/` (fleet, roots, operations), the tool `execute` bodies, and
+the command handlers still throw `Not implemented` and are scheduled in
+`ROADMAP.md` (M2–M6).
 
 Do not add features outside the current milestone. When implementing a stub,
 delete its `Not implemented` throw and update the milestone table in

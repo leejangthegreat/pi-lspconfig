@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MAX_RESULTS } from "../../../src/config/defaults.ts";
+import { DEFAULT_MAX_RESULTS } from "../../../src/util/defaults.ts";
 import { mergeServerSpec, resolveConfig, resolveLanguageIds } from "../../../src/config/resolve.ts";
 import { BUILTIN_SERVERS, EXTENSION_TO_LANGUAGE_ID } from "../../../src/languages/index.ts";
 import type { LspServerSpec } from "../../../src/types.ts";

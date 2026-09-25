@@ -22,7 +22,7 @@ export interface LspToolDeps {
 	/** Resolve the LSP service for a working directory, or `undefined` when disabled. */
 	getService(cwd: string): LSPService | undefined;
 	logger: Logger;
-	/** Effective result cap. Defaults to `DEFAULT_MAX_RESULTS` from `config/defaults.ts`. */
+	/** Effective result cap. Defaults to `DEFAULT_MAX_RESULTS` from `util/defaults.ts`. */
 	maxResults?: number;
 }
 

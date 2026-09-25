@@ -293,7 +293,7 @@ export interface ServerCapabilities {
 	workspace?: { diagnostics?: unknown };
 }
 
-/** The client capability object is intentionally loose here; see `config/defaults.ts`. */
+/** The client capability object is intentionally loose here; see `util/defaults.ts`. */
 export type ClientCapabilities = Record<string, unknown>;
 
 // ---------------------------------------------------------------------------

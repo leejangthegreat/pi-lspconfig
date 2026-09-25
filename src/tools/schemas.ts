@@ -11,7 +11,7 @@
  */
 
 import { Type, type Static, type TUnsafe } from "typebox";
-import { DEFAULT_MAX_RESULTS } from "../config/defaults.ts";
+import { DEFAULT_MAX_RESULTS } from "../util/defaults.ts";
 import { LSP_OPERATIONS } from "../core/operations.ts";
 
 /**
