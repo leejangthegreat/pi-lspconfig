@@ -132,6 +132,8 @@ export async function startSession(
 	const service = getLSPService({
 		servers: resolved.servers,
 		cwd: ctx.cwd,
+		languageIds: resolved.languageIds,
+		disabled: resolved.disabled,
 		logger: state.logger,
 	});
 	state.service = service;

@@ -53,13 +53,19 @@ export { LSP_OPERATIONS } from "./core/operations.ts";
 export type { LspOperation, OperationRequest } from "./core/operations.ts";
 export type {
 	LaunchContext,
+	LspCallHierarchyEntry,
+	LspCapabilitiesSummary,
+	LspCodeActionSummary,
 	LspconfigUserConfig,
 	LspDiagnostic,
 	LspEnvelope,
 	LspLocation,
+	LspPayload,
 	LspServerSpec,
 	LspServerSpecInput,
 	LspStatus,
+	LspSymbol,
+	LspTextEdit,
 	RootCtx,
 	ServerTable,
 } from "./types.ts";

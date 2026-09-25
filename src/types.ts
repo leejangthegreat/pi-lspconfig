@@ -150,6 +150,88 @@ export interface LspDiagnostic {
 	source?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Operation payloads
+// ---------------------------------------------------------------------------
+
+/** A symbol re-shaped for model consumption (1-based line/character). */
+export interface LspSymbol {
+	name: string;
+	/** Lower-case LSP symbol kind name, e.g. `"function"`. */
+	kind: string;
+	path: string;
+	line: number;
+	character: number;
+	endLine?: number;
+	endCharacter?: number;
+	/** Server-supplied signature or type detail, when present. */
+	detail?: string;
+	/** Enclosing symbol name, for flat `SymbolInformation` results. */
+	containerName?: string;
+	/** Nested symbols, for hierarchical `DocumentSymbol` results. */
+	children?: LspSymbol[];
+}
+
+/** A text edit re-shaped for model consumption (1-based line/character). */
+export interface LspTextEdit {
+	path: string;
+	line: number;
+	character: number;
+	endLine: number;
+	endCharacter: number;
+	newText: string;
+}
+
+/** A code action the model can ask for by title. */
+export interface LspCodeActionSummary {
+	title: string;
+	kind?: string;
+	isPreferred?: boolean;
+}
+
+/** One call-hierarchy node, flattened from `CallHierarchyItem`. */
+export interface LspCallHierarchyEntry {
+	name: string;
+	kind: string;
+	path: string;
+	line: number;
+	character: number;
+	detail?: string;
+	/** Call sites within the queried item, for incoming/outgoing calls. */
+	fromRanges?: LspLocation[];
+}
+
+/** What a server actually negotiated, for the `capabilities` operation. */
+export interface LspCapabilitiesSummary {
+	serverId: string;
+	positionEncoding: PositionEncodingKind;
+	syncKind: 0 | 1 | 2;
+	/** `LspOperation`s this server supports. */
+	operations: string[];
+	executeCommands: string[];
+}
+
+/**
+ * Operation-specific result, discriminated on `kind`.
+ *
+ * Which field an operation populates is a fixed contract:
+ *  - navigation (`definition`, `typeDefinition`, `declaration`,
+ *    `implementation`, `references`) → {@link LspEnvelope.locations};
+ *  - `lsp_diagnostics` → {@link LspEnvelope.diagnostics};
+ *  - every other operation → `payload`.
+ *
+ * `resultCount` is the primary item count of whichever field is set, and
+ * `status` remains authoritative regardless of which field carries the data.
+ */
+export type LspPayload =
+	| { kind: "text"; text: string; format: "plaintext" | "markdown" }
+	| { kind: "symbols"; symbols: LspSymbol[] }
+	| { kind: "edits"; edits: LspTextEdit[] }
+	| { kind: "codeActions"; actions: LspCodeActionSummary[] }
+	| { kind: "callHierarchy"; items: LspCallHierarchyEntry[] }
+	| { kind: "capabilities"; summary: LspCapabilitiesSummary }
+	| { kind: "status"; clients: LspClientStatus[] };
+
 /** `details` payload attached to every tool result. */
 export interface LspEnvelope {
 	operation: string;
@@ -158,6 +240,8 @@ export interface LspEnvelope {
 	resultCount: number;
 	locations?: LspLocation[];
 	diagnostics?: LspDiagnostic[];
+	/** Operation-specific result; see {@link LspPayload} for the contract. */
+	payload?: LspPayload;
 	notes?: string[];
 	hints?: string[];
 	errors?: string[];

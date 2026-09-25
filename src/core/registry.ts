@@ -35,24 +35,91 @@ export interface CreateServerResolverOptions {
 	disabled?: ReadonlySet<string>;
 }
 
-export function createServerResolver(_options: CreateServerResolverOptions): ServerResolver {
-	throw new Error("Not implemented: createServerResolver");
+/**
+ * Filenames that carry a language despite having no extension.
+ *
+ * Consulted only after the extension lookup fails, so `package.json` and
+ * `Cargo.lock` still resolve to `undefined` (`.json` and `.lock` are not
+ * registered). The entries exist so a user-defined server that declares one of
+ * these language ids is reachable for a file like `Dockerfile`.
+ */
+const WELL_KNOWN_FILENAMES: Readonly<Record<string, string>> = {
+	dockerfile: "dockerfile",
+	makefile: "makefile",
+};
+
+export function createServerResolver(options: CreateServerResolverOptions): ServerResolver {
+	const disabled = options.disabled ?? new Set<string>();
+
+	const specs: LspServerSpec[] = [];
+	const byLanguage = new Map<string, LspServerSpec[]>();
+
+	for (const [id, spec] of options.servers) {
+		if (disabled.has(id)) continue;
+		specs.push(spec);
+
+		const seen = new Set<string>();
+		for (const languageId of spec.filetypes) {
+			if (seen.has(languageId)) continue;
+			seen.add(languageId);
+			const bucket = byLanguage.get(languageId);
+			if (bucket === undefined) byLanguage.set(languageId, [spec]);
+			else bucket.push(spec);
+		}
+	}
+
+	const languageIdFor = (path: string): string | undefined =>
+		detectLanguageId(path, options.languageIds);
+
+	const serversFor = (path: string): readonly LspServerSpec[] => {
+		const languageId = languageIdFor(path);
+		if (languageId === undefined) return [];
+		return byLanguage.get(languageId) ?? [];
+	};
+
+	return {
+		resolve: (path) => {
+			const languageId = languageIdFor(path);
+			if (languageId === undefined) return undefined;
+			const server = (byLanguage.get(languageId) ?? [])[0];
+			if (server === undefined) return undefined;
+			return { server, languageId };
+		},
+		serversFor,
+		languageIdFor,
+		all: () => specs,
+	};
 }
 
 /** Lower-case extension including the leading dot, or `undefined` for extensionless files. */
-export function extensionOf(_path: string): string | undefined {
-	throw new Error("Not implemented: extensionOf");
+export function extensionOf(path: string): string | undefined {
+	const base = baseNameOf(path);
+	const index = base.lastIndexOf(".");
+	// `index === 0` is a dotfile (`.gitignore`), which has no extension.
+	if (index <= 0) return undefined;
+	return base.slice(index).toLowerCase();
 }
 
 /**
  * Language id for a path, with well-known filename fallbacks.
  *
  * Handles extensionless files that still have a language (`Dockerfile`,
- * `Makefile`) and multi-dot names (`package.json`, `Cargo.lock`).
+ * `Makefile`) and multi-dot names (`package.json`, `Cargo.lock`) — the latter by
+ * looking at the *last* dot, so `foo.test.ts` is TypeScript.
  */
 export function detectLanguageId(
-	_path: string,
-	_extensions: ReadonlyMap<string, string>,
+	path: string,
+	extensions: ReadonlyMap<string, string>,
 ): string | undefined {
-	throw new Error("Not implemented: detectLanguageId");
+	const extension = extensionOf(path);
+	if (extension !== undefined) {
+		const languageId = extensions.get(extension);
+		if (languageId !== undefined) return languageId;
+	}
+	return WELL_KNOWN_FILENAMES[baseNameOf(path).toLowerCase()];
+}
+
+/** Final path segment, splitting on both separators regardless of host. */
+function baseNameOf(path: string): string {
+	return path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
 }

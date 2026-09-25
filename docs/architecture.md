@@ -137,3 +137,30 @@ Every result has two halves:
 
 `status` is authoritative. A tool that returns an empty list because the server
 is missing must say `binary_missing`, not look like a successful empty search.
+
+Which envelope field carries the result is a fixed contract:
+
+| Operation | Field |
+| --------- | ----- |
+| `definition`, `typeDefinition`, `declaration`, `implementation`, `references` | `locations` |
+| `lsp_diagnostics` | `diagnostics` |
+| everything else (`hover`, symbols, `rename`, code actions, call hierarchy, `capabilities`, `status`, `executeCommand`) | `payload` |
+
+`payload` is a discriminated union on `kind`, so a renderer branches once and
+never has to guess. `resultCount` is the primary item count of whichever field
+is set.
+
+## Workspace roots and the ceiling
+
+A server's root is detected by walking up from the file for the spec's
+`rootMarkers` (highest-priority marker first, so priority beats depth) or by
+calling a dynamic `rootDir`. Either way the result is clamped to a **ceiling**:
+`computeCeiling(cwd)` rises to the nearest enclosing workspace
+(`.git`/`Cargo.toml`/`go.work`) so a file in a monorepo package still resolves to
+the repo root, but it never rises to `os.homedir()` or above. Without that
+boundary a stray `$HOME/.git` would turn the whole home directory into one
+workspace. A file outside the ceiling resolves to no root at all.
+
+A spec with no detected root runs in single-file mode only when it declares
+`singleFileSupport`; otherwise the operation reports `no_server` with the markers
+it looked for.

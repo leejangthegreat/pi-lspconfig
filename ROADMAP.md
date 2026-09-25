@@ -10,7 +10,7 @@ start `Mn+1` until every acceptance criterion for `Mn` passes.
 | --------- | ----- | ------ | ---------------------------- |
 | M0 | Scaffold + config core | ✅ done | no |
 | M1 | LSP client against a fake server | ✅ done | no |
-| M2 | Fleet, roots, operations | ⬜ not started | no |
+| M2 | Fleet, roots, operations | ✅ done | no |
 | M3 | Tool surface + extension wiring | ⬜ not started | no |
 | M4 | Lifecycle, reload, trust hardening | ⬜ not started | no |
 | M5 | Real-server smoke tests | ⬜ not started | **yes** |
@@ -165,6 +165,7 @@ npx vitest run tests/integration/fake-server tests/unit/text
 - `src/core/workspace.ts`: `computeCeiling`, `createWorkspaceResolver`.
 - `src/core/registry.ts`: `createServerResolver`, `extensionOf`, `detectLanguageId`.
 - `src/core/service.ts`: `createLSPService`, `getLSPService`, `acquireFleetRegistry`, `releaseFleetRegistry`, `peekFleetRegistry`.
+- `src/core/results.ts`: response normalisers (`locationResults`, `symbolResults`, `hoverText`, `signatureHelpText`, `workspaceEditToEdits`, `codeActionSummaries`, `callHierarchyEntries`).
 - `src/core/operations.ts`: `executeOperation`, `isLspOperation`, `validateOperationRequest`.
 
 **Acceptance criteria**
