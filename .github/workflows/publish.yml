@@ -17,6 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The ancestry gate below needs origin/main; a shallow clone of the
+          # tag would not have it.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -33,6 +37,15 @@ jobs:
           expected="v$(node -p 'require("./package.json").version')"
           if [ "$expected" != "$GITHUB_REF_NAME" ]; then
             echo "tag $GITHUB_REF_NAME does not match package.json version $expected" >&2
+            exit 1
+          fi
+
+      # `on.push.tags` matches the ref name only, so a tag on an unmerged
+      # branch would otherwise publish code that never passed CI on main.
+      - name: Tag must point at a commit on main
+        run: |
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "tag $GITHUB_REF_NAME points at $(git rev-parse --short HEAD), which is not an ancestor of main" >&2
             exit 1
           fi
 
