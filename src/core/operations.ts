@@ -418,11 +418,15 @@ async function runWorkspaceSymbol(
 	);
 
 	const notes: string[] = [];
-	const symbols = capList(
-		selectOccurrence(filterSymbols(symbolResults(raw, ""), request), request.occurrence),
-		ctx.maxResults,
-		notes,
-	);
+	// The server already applied `query`. `filterSymbols` filters on
+	// `request.symbol`, which is usually absent here — filtering anyway would
+	// compare every name against "" and drop the whole result.
+	const candidates = symbolResults(raw, "");
+	const named =
+		request.symbol === undefined || request.symbol.length === 0
+			? candidates
+			: filterSymbols(candidates, request);
+	const symbols = capList(selectOccurrence(named, request.occurrence), ctx.maxResults, notes);
 	return {
 		status: symbols.length > 0 ? "success" : "empty",
 		partial: { resultCount: symbols.length, payload: { kind: "symbols", symbols }, notes },

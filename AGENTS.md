@@ -114,8 +114,8 @@ a v22+ binary.
 
 ## Current state
 
-The repository is a **scaffold**. The extension adapter, config schema, language
-catalog, and types are real. Milestones M0, M1, and M2 are complete:
+The extension adapter, config schema, language catalog, types, engine, and tool
+surface are real. Milestones M0, M1, M2, and M3 are complete:
 
 - **M0** — `util/merge.ts`, `config/resolve.ts`, and `config/load.ts`, plus the
   shared constants in `util/defaults.ts` (relocated out of `config/` so `core/`
@@ -127,10 +127,14 @@ catalog, and types are real. Milestones M0, M1, and M2 are complete:
   `core/registry.ts`, `core/service.ts` (the `(serverId, root)` client fleet and
   its `globalThis` reload handoff), `core/results.ts`, and the full 18-operation
   `core/operations.ts` dispatch.
+- **M3** — the tool surface: `tools/format.ts` renderers and the `lsp` /
+  `lsp_diagnostics` execute bodies, `tools/session.ts` (the lazy `ToolSession`
+  the tools read on every call), the `tool_result` dirty-marking hook, and the
+  four `/lsp-*` command handlers.
 
-The tool `execute` bodies and the `tools/format.ts` renderers still throw
-`Not implemented`, as do the command handlers; they are scheduled in
-`ROADMAP.md` (M3–M6).
+The tools read live session state through `ToolSession`; nothing long-lived is
+created before the first tool call. Lifecycle/reload hardening (M4), real-server
+smoke tests (M5), and packaging (M6) remain.
 
 Do not add features outside the current milestone. When implementing a stub,
 delete its `Not implemented` throw and update the milestone table in

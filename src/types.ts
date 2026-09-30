@@ -199,6 +199,14 @@ export interface LspCallHierarchyEntry {
 	detail?: string;
 	/** Call sites within the queried item, for incoming/outgoing calls. */
 	fromRanges?: LspLocation[];
+	/**
+	 * The raw protocol item, round-tripped verbatim.
+	 *
+	 * `incomingCalls`/`outgoingCalls` take a `CallHierarchyItem`, not this
+	 * flattened shape, so the tool has to hand the model something it can pass
+	 * straight back.
+	 */
+	item?: unknown;
 }
 
 /** What a server actually negotiated, for the `capabilities` operation. */

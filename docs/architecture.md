@@ -150,6 +150,23 @@ Which envelope field carries the result is a fixed contract:
 never has to guess. `resultCount` is the primary item count of whichever field
 is set.
 
+Two details the renderer owns:
+
+- **The narrowing hint lives in both halves.** When `content[0].text` is
+  truncated, the hint is appended to the text *and* recorded in `details.hints`,
+  so a renderer of `details` shows the same guidance. It is appended after
+  rendering, so re-rendering an envelope never prints it twice.
+- **`status: "disabled"` is the tool layer's own.** No `core/` code emits it:
+  the tools produce it when no service is bound, which is the state before
+  `session_start`, after `session_shutdown`, and under `--lsp-disable`.
+
+`lsp_diagnostics` is the one tool that does not go through `executeOperation`.
+Diagnostics are pushed into a store rather than requested as an operation, so it
+reads the store directly and builds the same envelope by hand — including the
+`lsp_diagnostics` operation name. Its `scope: "workspace"` mode reports only
+documents already opened in the session, and says so when that set is empty
+rather than reporting a clean workspace.
+
 ## Workspace roots and the ceiling
 
 A server's root is detected by walking up from the file for the spec's

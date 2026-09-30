@@ -25,6 +25,8 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { resolve as resolvePath } from "node:path";
+import { isEditToolResult, isWriteToolResult } from "@earendil-works/pi-coding-agent";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
@@ -196,9 +198,22 @@ export function installLifecycle(pi: ExtensionAPI, state: SessionState): void {
 
 	// Pi's built-in `edit`/`write` change files behind the language server's
 	// back. The next LSP request re-reads from disk, so correctness does not
-	// depend on this hook — it only lets us skip a redundant re-sync. Wired in
-	// milestone M3.
-	pi.on("tool_result", () => {});
+	// depend on this hook — it only lets us skip a redundant re-sync.
+	//
+	// Nothing for other tools: `read`/`grep`/`find` do not change bytes, and a
+	// shell command that edits a file gives no reliable signal at all.
+	pi.on("tool_result", (event, ctx) => {
+		try {
+			if (event.isError) return;
+			if (!isEditToolResult(event) && !isWriteToolResult(event)) return;
+
+			const path = event.input.path;
+			if (typeof path !== "string" || path.length === 0) return;
+			state.service?.markDirty(resolvePath(ctx.cwd, path));
+		} catch (error) {
+			state.logger.debug("markDirty hook failed", error);
+		}
+	});
 }
 
 function reportStartupFailure(state: SessionState, ctx: ExtensionContext, error: unknown): void {

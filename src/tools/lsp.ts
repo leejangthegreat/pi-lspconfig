@@ -13,17 +13,16 @@
 
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
-import type { LSPService } from "../core/service.ts";
+import { executeOperation, isLspOperation, type OperationRequest } from "../core/operations.ts";
+import type { CallHierarchyItem } from "../protocol.ts";
 import type { LspEnvelope } from "../types.ts";
-import type { Logger } from "../util/logger.ts";
+import { createEnvelope, NARROW_RESULTS_HINT, toolResult } from "./format.ts";
 import { LspToolParameters } from "./schemas.ts";
+import type { ToolSession } from "./session.ts";
 
 export interface LspToolDeps {
-	/** Resolve the LSP service for a working directory, or `undefined` when disabled. */
-	getService(cwd: string): LSPService | undefined;
-	logger: Logger;
-	/** Effective result cap. Defaults to `DEFAULT_MAX_RESULTS` from `util/defaults.ts`. */
-	maxResults?: number;
+	/** Read the current session state. Never capture the result. */
+	getSession(): ToolSession;
 }
 
 const DESCRIPTION = [
@@ -53,11 +52,56 @@ export function createLspTool(deps: LspToolDeps) {
 			"For `rename`, leave `apply` false first and inspect the preview before applying.",
 		],
 		parameters: LspToolParameters,
-		// Mutating operations (rename with apply) are serialised by the dispatcher;
-		// read-only queries are safe to run alongside other tool calls.
+		// Read-only: `rename` with `apply: true` is refused by the engine, so
+		// nothing here mutates the workspace.
 		executionMode: "parallel",
-		async execute(_toolCallId, _params, _signal, _onUpdate, _ctx): Promise<AgentToolResult<LspEnvelope>> {
-			throw new Error("Not implemented: lsp tool execute");
+		async execute(_toolCallId, params, signal, _onUpdate, ctx): Promise<AgentToolResult<LspEnvelope>> {
+			const session = deps.getSession();
+			const operation = params.operation;
+
+			if (session.service === undefined) {
+				return toolResult(
+					createEnvelope(operation, "disabled", {
+						hints: ["Remove --lsp-disable to give this session language servers."],
+					}),
+					ctx.cwd,
+					NARROW_RESULTS_HINT,
+				);
+			}
+
+			if (!isLspOperation(operation)) {
+				return toolResult(
+					createEnvelope(operation, "bad_input", {
+						errors: [`Unknown operation '${String(operation)}'.`],
+					}),
+					ctx.cwd,
+					NARROW_RESULTS_HINT,
+				);
+			}
+
+			const request: OperationRequest = {
+				...params,
+				// The schema types this `unknown` on purpose: the model round-trips
+				// an opaque item it got from `prepareCallHierarchy`, and only the
+				// server can validate it.
+				callHierarchyItem: params.callHierarchyItem as CallHierarchyItem | undefined,
+			};
+
+			const envelope = await executeOperation(session.service, request, {
+				cwd: ctx.cwd,
+				signal,
+				maxResults: params.maxResults ?? session.maxResults,
+				logger: session.logger,
+			});
+
+			if (operation === "prepareCallHierarchy" && envelope.payload?.kind === "callHierarchy") {
+				envelope.hints = [
+					...(envelope.hints ?? []),
+					"Pass one item's `item` field back as `callHierarchyItem` for incoming/outgoing calls.",
+				];
+			}
+
+			return toolResult(envelope, ctx.cwd, NARROW_RESULTS_HINT);
 		},
 	});
 }

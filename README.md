@@ -6,9 +6,9 @@ through one unified tool.
 
 Built on nvim-lspconfig's config model and pi-lens's tool surface.
 
-> **Status: scaffold.** The extension loads and registers its tools, flags, and
-> commands. The LSP engine is not implemented yet — see [`ROADMAP.md`](ROADMAP.md)
-> for milestone status.
+> **Status: usable.** Milestones M0–M3 are complete: the tools, diagnostics,
+> and `/lsp-*` commands are live. Lifecycle/reload hardening (M4), real-server
+> smoke tests (M5), and packaging (M6) remain — see [`ROADMAP.md`](ROADMAP.md).
 
 ## Why
 

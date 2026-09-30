@@ -11,7 +11,6 @@
  */
 
 import { Type, type Static, type TUnsafe } from "typebox";
-import { DEFAULT_MAX_RESULTS } from "../util/defaults.ts";
 import { LSP_OPERATIONS } from "../core/operations.ts";
 
 /**
@@ -119,7 +118,7 @@ export const LspToolParameters = Type.Object({
 	maxResults: Type.Optional(
 		Type.Integer({
 			minimum: 1,
-			description: `Cap on returned locations. Defaults to ${DEFAULT_MAX_RESULTS}.`,
+			description: "Cap on returned locations. Defaults to the configured cap.",
 		}),
 	),
 	newName: Type.Optional(Type.String({ description: "New name for `rename`." })),
@@ -151,13 +150,13 @@ export const LspDiagnosticsParameters = Type.Object({
 		Type.String({ description: "File path. Required unless `scope` is \"workspace\"." }),
 	),
 	scope: Type.Optional(
-		stringEnum(["file", "workspace"], {
+		stringEnum(["file", "workspace"] as const, {
 			description:
 				"\"file\" (default) reports one file; \"workspace\" reports every open document.",
 		}),
 	),
 	severity: Type.Optional(
-		stringEnum(["error", "warning", "information", "hint"], {
+		stringEnum(["error", "warning", "information", "hint"] as const, {
 			description: "Minimum severity to include. Defaults to \"hint\" (everything).",
 		}),
 	),

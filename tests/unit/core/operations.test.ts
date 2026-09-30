@@ -408,6 +408,52 @@ describe("executeOperation — results", () => {
 
 		expect(envelope.servers).toEqual(["first"]);
 		expect(envelope.payload?.kind).toBe("symbols");
+		if (envelope.payload?.kind !== "symbols") throw new Error("wrong payload");
+		// The server already applied `query`; a `symbol`-less request must not
+		// filter every name against "".
+		expect(envelope.status).toBe("success");
+		expect(envelope.resultCount).toBe(1);
+		expect(envelope.payload.symbols.map((symbol) => symbol.name)).toEqual(["foo"]);
+	});
+
+	it("still filters workspaceSymbol results when `symbol` is also given", async () => {
+		const stub = createStub({
+			allServers: [{ id: "first", cmd: ["first"], filetypes: ["typescript"] }],
+			responses: {
+				"workspace/symbol": [
+					{ name: "foo", kind: 12, location: { uri: "file:///repo/a.ts", range: zeroRange() } },
+					{ name: "bar", kind: 12, location: { uri: "file:///repo/b.ts", range: zeroRange() } },
+				],
+			},
+		});
+		const envelope = await run({ operation: "workspaceSymbol", query: "f", symbol: "foo" }, stub);
+
+		expect(envelope.payload?.kind).toBe("symbols");
+		if (envelope.payload?.kind !== "symbols") throw new Error("wrong payload");
+		expect(envelope.payload.symbols.map((symbol) => symbol.name)).toEqual(["foo"]);
+	});
+
+	it("round-trips the raw call-hierarchy item for incoming/outgoing calls", async () => {
+		const node = {
+			name: "f",
+			kind: 12,
+			uri: "file:///repo/a.ts",
+			range: zeroRange(),
+			selectionRange: zeroRange(),
+		};
+		const stub = createStub({
+			capabilities: { ...DEFAULT_CAPABILITIES, callHierarchyProvider: true },
+			responses: { "textDocument/prepareCallHierarchy": [node] },
+		});
+		const envelope = await run(
+			{ operation: "prepareCallHierarchy", path: "a.ts", line: 1, character: 1 },
+			stub,
+		);
+
+		expect(envelope.payload?.kind).toBe("callHierarchy");
+		if (envelope.payload?.kind !== "callHierarchy") throw new Error("wrong payload");
+		// Without this the model has nothing to pass back as `callHierarchyItem`.
+		expect(envelope.payload.items[0]?.item).toEqual(node);
 	});
 });
 

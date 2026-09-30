@@ -11,15 +11,17 @@
  * skipped, not allowed to produce a `undefined` field in a result.
  */
 
-import type { Range } from "../protocol.ts";
+import type { Diagnostic, Range } from "../protocol.ts";
 import type {
 	LspCallHierarchyEntry,
 	LspCodeActionSummary,
+	LspDiagnostic,
 	LspLocation,
 	LspSymbol,
 	LspTextEdit,
 } from "../types.ts";
 import { uriToPath } from "../util/paths.ts";
+import { toSeverityLabel } from "./client/diagnostics.ts";
 
 /** Symbol kind numbers 1..26, in the spelling the tool schema uses. */
 const SYMBOL_KIND_NAMES: readonly string[] = [
@@ -268,6 +270,9 @@ export function callHierarchyEntries(
 			path: uri.length === 0 ? "" : uriToPath(uri),
 			...startOf(range),
 			...(typeof node.detail === "string" ? { detail: node.detail } : {}),
+			// Round-tripped verbatim: `incomingCalls`/`outgoingCalls` need a
+			// `CallHierarchyItem`, which only the server can produce.
+			item: node,
 		};
 
 		if (Array.isArray(ranges)) {
@@ -281,6 +286,26 @@ export function callHierarchyEntries(
 		entries.push(entry);
 	}
 	return entries;
+}
+
+/**
+ * Diagnostics re-shaped for model consumption, with `path` attached.
+ *
+ * The diagnostic store hands back wire diagnostics (0-based, numeric severity);
+ * the envelope carries 1-based positions and severity labels.
+ */
+export function diagnosticResults(
+	diagnostics: readonly Diagnostic[],
+	path: string,
+): LspDiagnostic[] {
+	return diagnostics.map((diagnostic) => ({
+		path,
+		...startOf(diagnostic.range),
+		severity: toSeverityLabel(diagnostic.severity),
+		message: diagnostic.message,
+		...(diagnostic.code === undefined ? {} : { code: String(diagnostic.code) }),
+		...(diagnostic.source === undefined ? {} : { source: diagnostic.source }),
+	}));
 }
 
 /** 1-based start position of a range. */
