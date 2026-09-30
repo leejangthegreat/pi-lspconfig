@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # dev is the high-frequency branch; main is the release line. Pull requests
+  # are covered regardless of their base branch.
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 jobs:

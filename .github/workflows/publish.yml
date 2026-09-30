@@ -1,6 +1,9 @@
 name: Publish
 
-# Tag-driven: pushes to main run ci.yml only. Cut a release with
+# Tag-driven: `dev` is the development branch (ci.yml), `main` is the release
+# line. To release, merge dev into main and tag there — a tag on a dev-only
+# commit is rejected by the ancestry gate below:
+#   git switch main && git merge dev
 #   npm version patch -m "Release %s" && git push --follow-tags
 on:
   push:
