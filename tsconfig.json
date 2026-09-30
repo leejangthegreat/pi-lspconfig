@@ -12,7 +12,7 @@
 		"noImplicitOverride": true,
 		"noFallthroughCasesInSwitch": true,
 		"noUnusedLocals": true,
-		"noUnusedParameters": false,
+		"noUnusedParameters": true,
 
 		"verbatimModuleSyntax": true,
 		"isolatedModules": true,
@@ -26,6 +26,6 @@
 			"pi-lspconfig": ["./src/index.ts"]
 		}
 	},
-	"include": ["src/**/*.ts", "examples/**/*.ts", "tests/**/*.ts"],
+	"include": ["src/**/*.ts", "scripts/**/*.ts", "examples/**/*.ts", "tests/**/*.ts"],
 	"exclude": ["node_modules", "tests/fixtures"]
 }

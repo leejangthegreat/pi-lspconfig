@@ -13,6 +13,14 @@ export const DEFAULT_INITIALIZE_TIMEOUT_MS = 15_000;
 /** How long to wait after SIGTERM before escalating to SIGKILL. */
 export const DEFAULT_SHUTDOWN_GRACE_MS = 1_500;
 
+/**
+ * Deadline for an opt-in `installCommand`.
+ *
+ * Generous on purpose: `go install` and a cold `npm install -g` both compile or
+ * download, and killing a package manager halfway is worse than waiting.
+ */
+export const DEFAULT_INSTALL_TIMEOUT_MS = 120_000;
+
 /** How long to wait for the first diagnostics after `didOpen`. */
 export const DEFAULT_DIAGNOSTICS_QUIET_MS = 400;
 

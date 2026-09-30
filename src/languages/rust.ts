@@ -3,8 +3,8 @@ import type { LspServerSpec } from "../types.ts";
 /**
  * Rust via `rust-analyzer`.
  *
- * `rust-analyzer` speaks stdio with no arguments. `rust-project.json` is listed
- * so non-Cargo (Bazel, Buck) workspaces resolve a root too.
+ * The `rust-project.json` rationale lives in `docs.notes` so it is rendered
+ * into docs/languages.md from here.
  *
  * @see https://rust-analyzer.github.io/
  */
@@ -25,6 +25,9 @@ export const rustAnalyzer: LspServerSpec = {
 	},
 	docs: {
 		description: "Rust language server.",
+		notes:
+			"`rust-project.json` is listed so non-Cargo workspaces (Bazel, Buck) resolve " +
+			"a root too.",
 		url: "https://rust-analyzer.github.io/",
 	},
 };

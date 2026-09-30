@@ -6,9 +6,9 @@ through one unified tool.
 
 Built on nvim-lspconfig's config model and pi-lens's tool surface.
 
-> **Status: usable.** Milestones M0–M5 are complete: the tools, diagnostics,
-> `/lsp-*` commands, reload hardening, and real-server smoke tests are live.
-> Packaging and the docs generator (M6) remain — see [`ROADMAP.md`](ROADMAP.md).
+> **Status: usable.** Milestones M0–M6 are complete: the tools, diagnostics,
+> `/lsp-*` commands, reload hardening, real-server smoke tests, packaging, and
+> the generated language docs are live. See [`ROADMAP.md`](ROADMAP.md).
 
 ## Why
 
@@ -75,6 +75,26 @@ the key.
 See [`docs/configuration.md`](docs/configuration.md) for search paths,
 precedence, and the full reference.
 
+## Auto-install
+
+Off by default. Installing a toolchain is a supply-chain decision, so
+pi-lspconfig reports a missing binary rather than acting on it. When you do want
+it, opt in per server:
+
+```ts
+export default defineConfig({
+	servers: {
+		gopls: { autoInstall: true },
+	},
+});
+```
+
+On the first missing binary for that server, its `installCommand` runs once (120
+second deadline, output captured) and the launch is retried once. A failed
+install still returns `status: "binary_missing"`, with the installer's last line
+as a note. Servers you define yourself need both `installCommand` and
+`autoInstall: true`.
+
 ## Commands
 
 | Command | Purpose |
@@ -97,16 +117,17 @@ precedence, and the full reference.
 pi install npm:pi-lspconfig
 ```
 
-During development:
+From a checkout (the extension is plain TypeScript, there is no build step):
 
 ```bash
 npm install
-pi -e ./src/index.ts
+pi install ./pi-lspconfig    # or: pi -e ./src/index.ts for one invocation
 ```
 
 Language servers are **not** installed for you. Put `vtsls`, `pyright-langserver`,
 `rust-analyzer`, or `gopls` on your `PATH` as needed; a missing binary is
-reported with its install command.
+reported with its install command. To have pi-lspconfig run that command for
+you, opt in per server — see [Auto-install](#auto-install).
 
 ## Supported languages
 

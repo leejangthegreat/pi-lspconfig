@@ -14,7 +14,7 @@ start `Mn+1` until every acceptance criterion for `Mn` passes.
 | M3 | Tool surface + extension wiring | ✅ done | no |
 | M4 | Lifecycle, reload, trust hardening | ✅ done | no |
 | M5 | Real-server smoke tests | ✅ done | **yes** |
-| M6 | Packaging and docs | ⬜ not started | no |
+| M6 | Packaging and docs | ✅ done | no |
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done
 
@@ -40,9 +40,9 @@ Give pi's agent real semantic code intelligence, the way an editor gets it:
   answer textual ones.
 - Formatting, completion, and linting. These are not model-facing navigation
   problems and belong in a different extension.
-- Auto-installing language servers. v1 reports the missing binary and the
-  install command; installing toolchains is a supply-chain decision for the
-  user.
+- Auto-installing language servers by default. v1 reports the missing binary and
+  the install command; installing toolchains is a supply-chain decision for the
+  user, so it only happens when a server opts in with `autoInstall: true` (M6).
 - A standalone MCP server. The tool schemas are JSON Schema and the results are
   MCP-shaped, so a transport can be added later without redesign.
 

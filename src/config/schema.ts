@@ -37,10 +37,22 @@ export const ServerSpecInputSchema = Type.Object(
 		env: Type.Optional(Type.Record(Type.String(), Type.String())),
 		capabilities: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
 		singleFileSupport: Type.Optional(Type.Boolean()),
+		installCommand: Type.Optional(
+			Type.String({ description: "Shell command that installs the server binary." }),
+		),
+		autoInstall: Type.Optional(
+			Type.Boolean({
+				description: "Run installCommand once when the binary is missing. Off by default.",
+			}),
+		),
 		initializeTimeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
 		docs: Type.Optional(
 			Type.Object(
-				{ description: Type.String(), url: Type.Optional(Type.String()) },
+				{
+					description: Type.String(),
+					notes: Type.Optional(Type.String()),
+					url: Type.Optional(Type.String()),
+				},
 				{ additionalProperties: false },
 			),
 		),

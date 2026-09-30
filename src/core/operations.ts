@@ -760,7 +760,12 @@ function mapError(error: unknown, request: OperationRequest): Outcome {
 	if (isLSPServiceError(error)) {
 		return {
 			status: error.status,
-			partial: { errors: [error.message], ...(error.hints.length > 0 ? { hints: [...error.hints] } : {}) },
+			partial: {
+				errors: [error.message],
+				...(error.hints.length > 0 ? { hints: [...error.hints] } : {}),
+				...(error.notes.length > 0 ? { notes: [...error.notes] } : {}),
+				...(error.serverId === undefined ? {} : { servers: [error.serverId] }),
+			},
 		};
 	}
 

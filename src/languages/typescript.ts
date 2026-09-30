@@ -3,9 +3,8 @@ import type { LspServerSpec } from "../types.ts";
 /**
  * TypeScript / JavaScript via `vtsls`.
  *
- * vtsls is preferred over the bundled `typescript-language-server` because it
- * exposes the richer VS Code feature set (call hierarchy, code actions, and
- * `workspace/executeCommand` for refactors) with a stable stdio entry point.
+ * The rationale for choosing it over `typescript-language-server` lives in
+ * `docs.notes` so it is rendered into docs/languages.md from here.
  *
  * @see https://github.com/yioneko/vtsls
  */
@@ -32,6 +31,10 @@ export const vtsls: LspServerSpec = {
 	},
 	docs: {
 		description: "TypeScript and JavaScript language server (VS Code feature set).",
+		notes:
+			"Chosen over the bundled `typescript-language-server` because it exposes the " +
+			"richer VS Code feature set — call hierarchy, code actions, and " +
+			"`workspace/executeCommand` refactors — behind a stable stdio entry point.",
 		url: "https://github.com/yioneko/vtsls",
 	},
 };

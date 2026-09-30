@@ -198,6 +198,8 @@ function failureEnvelope(error: unknown): LspEnvelope {
 		return createEnvelope("lsp_diagnostics", error.status, {
 			errors: [error.message],
 			...(error.hints.length > 0 ? { hints: [...error.hints] } : {}),
+			...(error.notes.length > 0 ? { notes: [...error.notes] } : {}),
+			...(error.serverId === undefined ? {} : { servers: [error.serverId] }),
 		});
 	}
 

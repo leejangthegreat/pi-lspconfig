@@ -12,7 +12,12 @@ export default defineConfig({
 		// Override a built-in server. Objects merge recursively and the user's
 		// keys win, so only `typeCheckingMode` changes here — the built-in
 		// `rootMarkers`, `cmd`, and the rest of `settings` survive.
+		//
+		// `autoInstall` is opt-in per server: when the binary is missing, the
+		// spec's `installCommand` runs once (here: `npm install -g pyright`).
+		// Leave it out and a missing binary is only reported, never installed.
 		pyright: {
+			autoInstall: true,
 			settings: {
 				python: {
 					analysis: {

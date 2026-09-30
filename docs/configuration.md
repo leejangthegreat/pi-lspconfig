@@ -71,7 +71,8 @@ servers: {
 | Field | Type | Meaning |
 | ----- | ---- | ------- |
 | `cmd` | `string[]` or `(ctx) => string[]` | Argv. A function may inspect the resolved root before deciding. |
-| `installCommand` | `string` | Shell command that installs the binary. Quoted in the `binary_missing` hint. |
+| `installCommand` | `string` | Shell command that installs the binary. Quoted in the `binary_missing` hint, and what `autoInstall` runs. |
+| `autoInstall` | `boolean` | Run `installCommand` once when the binary is missing, then retry the launch once. Default `false`. |
 | `filetypes` | `string[]` | LSP `languageId`s to handle. |
 | `rootMarkers` | `string[]` | Ordered, highest priority first. |
 | `rootDir` | `(file, ctx) => string \| undefined` | Dynamic root detection. Takes precedence over `rootMarkers`. |
@@ -81,7 +82,28 @@ servers: {
 | `capabilities` | `object` | Client capability overrides, merged over the defaults. |
 | `singleFileSupport` | `boolean` | Whether the server works on a file with no project root. |
 | `initializeTimeoutMs` | `number` | Handshake deadline. Defaults to 15000. |
-| `docs` | `{ description, url? }` | Documentation metadata. |
+| `docs` | `{ description, notes?, url? }` | Documentation metadata. `notes` is longer prose rendered into `docs/languages.md`; it is not shown by `/lsp-config`. |
+
+#### `autoInstall`
+
+Opt in per server. When the binary is missing, `installCommand` runs once in a
+shell (120 second deadline, combined output captured, tail kept), and the launch
+is retried once. A failed install is reported as `status: "binary_missing"` with
+the installer's last output line as a note. The install is attempted at most
+once per session, not on every call.
+
+```ts
+servers: {
+  // Only these two may install themselves.
+  gopls: { autoInstall: true },
+  pyright: { autoInstall: true },
+}
+```
+
+Off by default on purpose: running `npm install -g …` / `go install …` is a
+supply-chain decision, and a project-scoped config is only trusted when the
+project is. A spec with `autoInstall: true` but no `installCommand` gets an extra
+hint saying so instead of silently doing nothing.
 
 ### `disabledServers`
 

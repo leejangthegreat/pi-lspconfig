@@ -37,6 +37,7 @@ import type {
 	ExtensionContext,
 	SessionShutdownEvent,
 	SessionStartEvent,
+	ToolResultEvent,
 } from "@earendil-works/pi-coding-agent";
 import { loadUserConfig } from "../config/load.ts";
 import { resolveConfig, type ResolvedConfig } from "../config/resolve.ts";
@@ -73,6 +74,11 @@ export interface SessionState {
 	registry: FleetRegistry | undefined;
 	/** Bound service, absent until `session_start` completes and after shutdown. */
 	service: LSPService | undefined;
+	/**
+	 * Server ids already announced as missing, so a failing tool call nags once
+	 * per session instead of on every call. Per runtime: `/reload` may remind.
+	 */
+	notifiedBinaryMissing: Set<string>;
 }
 
 /** Build the per-runtime state object. Called from the extension factory. */
@@ -85,6 +91,7 @@ export function createSessionState(): SessionState {
 		config: undefined,
 		registry: undefined,
 		service: undefined,
+		notifiedBinaryMissing: new Set(),
 	};
 }
 
@@ -218,6 +225,7 @@ export function installLifecycle(pi: ExtensionAPI, state: SessionState): void {
 	// shell command that edits a file gives no reliable signal at all.
 	pi.on("tool_result", (event, ctx) => {
 		try {
+			notifyMissingBinary(state, ctx, event);
 			if (event.isError) return;
 			if (!isEditToolResult(event) && !isWriteToolResult(event)) return;
 
@@ -228,6 +236,62 @@ export function installLifecycle(pi: ExtensionAPI, state: SessionState): void {
 			state.logger.debug("markDirty hook failed", error);
 		}
 	});
+}
+
+/**
+ * Tell the user once per server that a binary is missing.
+ *
+ * The tool result already carries the hint to the model; this is for the human,
+ * who would otherwise watch the same failure scroll by on every call. The
+ * envelope's `servers` field is what makes the dedupe key possible — it is set
+ * on `binary_missing` by the service.
+ */
+function notifyMissingBinary(
+	state: SessionState,
+	ctx: ExtensionContext,
+	event: ToolResultEvent,
+): void {
+	if (event.toolName !== "lsp" && event.toolName !== "lsp_diagnostics") return;
+	if (!ctx.hasUI) return;
+
+	const envelope = binaryMissingEnvelope(event.details);
+	if (envelope === undefined) return;
+
+	const serverId = Array.isArray(envelope.servers) ? envelope.servers[0] : undefined;
+	if (typeof serverId !== "string" || state.notifiedBinaryMissing.has(serverId)) return;
+	state.notifiedBinaryMissing.add(serverId);
+
+	const parts = [`pi-lspconfig: ${serverId} is not installed.`];
+	const note = firstString(envelope.notes);
+	if (note !== undefined) parts.push(note);
+	const hint = installHint(envelope.hints);
+	if (hint !== undefined) parts.push(hint);
+	ctx.ui.notify(parts.join(" "), "warning");
+}
+
+interface BinaryMissingEnvelope {
+	status: "binary_missing";
+	servers?: unknown;
+	notes?: unknown;
+	hints?: unknown;
+}
+
+function binaryMissingEnvelope(details: unknown): BinaryMissingEnvelope | undefined {
+	if (typeof details !== "object" || details === null) return undefined;
+	if ((details as { status?: unknown }).status !== "binary_missing") return undefined;
+	return details as BinaryMissingEnvelope;
+}
+
+function firstString(value: unknown): string | undefined {
+	if (!Array.isArray(value)) return undefined;
+	return value.find((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
+/** Prefer the actionable install command over the generic override hint. */
+function installHint(value: unknown): string | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const hints = value.filter((entry): entry is string => typeof entry === "string");
+	return hints.find((hint) => hint.startsWith("Install it with:")) ?? hints[0];
 }
 
 function reportStartupFailure(state: SessionState, ctx: ExtensionContext, error: unknown): void {

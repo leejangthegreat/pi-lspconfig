@@ -75,11 +75,22 @@ export interface LspServerSpec {
 	 * for the opt-in auto-install path and the language docs generator.
 	 */
 	installCommand?: string;
+	/**
+	 * Run {@link installCommand} once when the binary is missing, then retry the
+	 * launch once. Off unless a config file sets it: installing a toolchain is a
+	 * supply-chain decision, so the default stays "report, do not act".
+	 */
+	autoInstall?: boolean;
 	/** Handshake timeout. Defaults to `DEFAULT_INITIALIZE_TIMEOUT_MS`. */
 	initializeTimeoutMs?: number;
 	/** Documentation metadata; consumed by the docs generator. */
 	docs?: {
 		description: string;
+		/**
+		 * Longer prose rendered under the table in `docs/languages.md`. Kept out
+		 * of `description` so `/lsp-config` stays one line per server.
+		 */
+		notes?: string;
 		url?: string;
 	};
 }

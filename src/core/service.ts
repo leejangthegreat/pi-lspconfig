@@ -45,6 +45,7 @@ import {
 import { initializeClient } from "./client/initialize.ts";
 import { defaultSpawn, resolveCommand, type LSPProcess, type SpawnFn } from "./client/launch.ts";
 import { createDocumentSynchronizer, type DocumentSynchronizer } from "./client/sync.ts";
+import { createInstallRunner, type InstallOutcome, type InstallRunner } from "./install.ts";
 import { createServerResolver, type ServerResolver } from "./registry.ts";
 import { createWorkspaceResolver, type WorkspaceResolver } from "./workspace.ts";
 
@@ -60,6 +61,8 @@ export interface LSPServiceOptions {
 	logger: Logger;
 	/** Injectable launcher, for tests. Defaults to `defaultSpawn`. */
 	spawn?: SpawnFn;
+	/** Injectable installer for opt-in `autoInstall`. Defaults to the shell runner. */
+	installRunner?: InstallRunner;
 	/** Overrides merged over `DEFAULT_CLIENT_CAPABILITIES`. */
 	clientCapabilities?: ClientCapabilities;
 	/** Default handshake timeout for servers that do not set their own. */
@@ -121,13 +124,24 @@ const SERVICE_ERROR_MARKER = Symbol.for("pi-lspconfig.serviceError");
 export class LSPServiceError extends Error {
 	readonly status: LspStatus;
 	readonly hints: readonly string[];
+	/** Server the failure belongs to, surfaced in the envelope's `servers`. */
+	readonly serverId: string | undefined;
+	/** Extra envelope notes, e.g. why an automatic install failed. */
+	readonly notes: readonly string[];
 	readonly marker: symbol = SERVICE_ERROR_MARKER;
 
-	constructor(status: LspStatus, message: string, hints: readonly string[] = []) {
+	constructor(
+		status: LspStatus,
+		message: string,
+		hints: readonly string[] = [],
+		details: { serverId?: string; notes?: readonly string[] } = {},
+	) {
 		super(message);
 		this.name = "LSPServiceError";
 		this.status = status;
 		this.hints = [...hints];
+		this.serverId = details.serverId;
+		this.notes = [...(details.notes ?? [])];
 	}
 }
 
@@ -166,22 +180,80 @@ export function createLSPService(options: LSPServiceOptions): LSPService {
 	});
 	const workspace: WorkspaceResolver = createWorkspaceResolver({ cwd });
 	const spawn = options.spawn ?? defaultSpawn;
+	const installRunner = options.installRunner ?? createInstallRunner();
 
 	const clients = new Map<string, ClientEntry>();
+	/**
+	 * One install per server id per service, shared by every root and by
+	 * concurrent callers. A failed install is cached too: the user has been told
+	 * what to run, and re-running it on every tool call would be hostile.
+	 */
+	const installAttempts = new Map<string, Promise<InstallOutcome>>();
 	let closing = false;
 	let shutdownPromise: Promise<void> | undefined;
+
+	/**
+	 * Resolve `bin`, running the opt-in install once when it is missing.
+	 *
+	 * Returns the resolution and any notes for the failure envelope; it never
+	 * throws, so the caller decides how to report a missing binary.
+	 */
+	const resolveWithAutoInstall = async (
+		spec: LspServerSpec,
+		bin: string,
+	): Promise<{ command: string | undefined; notes: string[] }> => {
+		const found = await resolveCommand(bin);
+		if (found !== undefined) return { command: found, notes: [] };
+		if (spec.autoInstall !== true || spec.installCommand === undefined) {
+			return { command: undefined, notes: [] };
+		}
+
+		let attempt = installAttempts.get(spec.id);
+		if (attempt === undefined) {
+			attempt = installRunner({ command: spec.installCommand, cwd }).catch(
+				(error: unknown): InstallOutcome => ({
+					ok: false,
+					exitCode: null,
+					output: error instanceof Error ? error.message : String(error),
+				}),
+			);
+			installAttempts.set(spec.id, attempt);
+		}
+		const outcome = await attempt;
+
+		if (outcome.ok) {
+			const installed = await resolveCommand(bin);
+			if (installed !== undefined) {
+				logger.info(`${spec.id}: installed via '${spec.installCommand}'`);
+				return { command: installed, notes: [] };
+			}
+			return {
+				command: undefined,
+				notes: [`Automatic install succeeded but '${bin}' is still not on PATH.`],
+			};
+		}
+
+		const reason = outcome.exitCode === null ? "failed" : `exited ${outcome.exitCode}`;
+		const detail = lastOutputLine(outcome.output);
+		logger.warn(`${spec.id}: automatic install ${reason}${detail === "" ? "" : `: ${detail}`}`);
+		return {
+			command: undefined,
+			notes: [`Automatic install ${reason}${detail === "" ? "" : `: ${detail}`}`],
+		};
+	};
 
 	const startClient = (entry: ClientEntry, languageId: string): Promise<ClientEntry> => {
 		entry.startPromise = (async (): Promise<ClientEntry> => {
 			const spec = entry.spec;
 			try {
 				const argv = await resolveArgv(spec, { serverId: spec.id, root: entry.root, cwd });
-				const command = await resolveCommand(argv[0] ?? "");
+				const { command, notes } = await resolveWithAutoInstall(spec, argv[0] ?? "");
 				if (command === undefined) {
 					throw new LSPServiceError(
 						"binary_missing",
 						`${spec.id}: '${argv[0] ?? ""}' was not found on PATH.`,
 						missingBinaryHints(spec),
+						{ serverId: spec.id, notes },
 					);
 				}
 
@@ -502,9 +574,23 @@ async function resolveArgv(spec: LspServerSpec, ctx: LaunchContext): Promise<str
  */
 function missingBinaryHints(spec: LspServerSpec): string[] {
 	const overrideHint = `Or override 'cmd' for '${spec.id}' in pi-lspconfig.config.ts.`;
-	return spec.installCommand === undefined
-		? [`Install it, or override 'cmd' for '${spec.id}' in pi-lspconfig.config.ts.`]
-		: [`Install it with: ${spec.installCommand}`, overrideHint];
+	const hints =
+		spec.installCommand === undefined
+			? [`Install it, or override 'cmd' for '${spec.id}' in pi-lspconfig.config.ts.`]
+			: [`Install it with: ${spec.installCommand}`, overrideHint];
+	if (spec.autoInstall === true && spec.installCommand === undefined) {
+		hints.push(`autoInstall is on for '${spec.id}' but its spec has no installCommand.`);
+	}
+	return hints;
+}
+
+/** Last non-empty line of captured installer output, for a one-line note. */
+function lastOutputLine(output: string): string {
+	const lines = output
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+	return lines[lines.length - 1] ?? "";
 }
 
 /** Stable key for a `(serverId, root)` pair. */
@@ -706,6 +792,8 @@ function serverTableSignature(
 				(spec.rootMarkers ?? []).join("\u0001"),
 				spec.rootDir === undefined ? "" : `fn:${identityOf(spec.rootDir)}`,
 				spec.singleFileSupport === true ? "1" : "0",
+				spec.autoInstall === true ? "1" : "0",
+				spec.installCommand ?? "",
 				String(spec.initializeTimeoutMs ?? ""),
 				stableJson(spec.initOptions),
 				stableJson(spec.settings),

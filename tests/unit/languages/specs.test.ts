@@ -15,4 +15,17 @@ describe("built-in server catalog", () => {
 			expect(spec.installCommand, `${spec.id} has no installCommand`).toBeTruthy();
 		}
 	});
+
+	it("describes every server for the docs generator", () => {
+		for (const spec of BUILTIN_SERVERS) {
+			expect(spec.docs?.description, `${spec.id} has no docs.description`).toBeTruthy();
+			expect(spec.docs?.url, `${spec.id} has no docs.url`).toBeTruthy();
+		}
+	});
+
+	it("leaves auto-install off until a config opts in", () => {
+		for (const spec of BUILTIN_SERVERS) {
+			expect(spec.autoInstall, `${spec.id} must not auto-install by default`).toBeUndefined();
+		}
+	});
 });

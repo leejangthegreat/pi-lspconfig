@@ -145,9 +145,16 @@ surface are real. Milestones M0, M1, M2, M3, M4, and M5 are complete:
   locators (`CARGO_HOME`, `RUSTUP_HOME`, `GOPATH`, …) added to
   `INHERITED_ENV_ALLOWLIST`, without which a rustup-proxied `rust-analyzer`
   cannot find its installation.
+- **M6** — packaging and docs: `scripts/language-docs.ts` (pure renderer) and
+  `scripts/gen-language-docs.mjs` (jiti CLI) generate `docs/languages.md`;
+  per-server opt-in `autoInstall` with `core/install.ts` as the injectable shell
+  runner; one `binary_missing` notification per server from the `tool_result`
+  hook; `repository`/`publishConfig` in `package.json` and the tag-driven
+  `.github/workflows/publish.yml` (npm Trusted Publishing, OIDC).
 
 The tools read live session state through `ToolSession`; nothing long-lived is
-created before the first tool call. Packaging (M6) remains.
+created before the first tool call. All milestones are complete; new work starts
+with a ROADMAP entry.
 
 Do not add features outside the current milestone. When implementing a stub,
 delete its `Not implemented` throw and update the milestone table in

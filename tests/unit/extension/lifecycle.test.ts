@@ -29,6 +29,28 @@ function resultEvent(toolName: string, input: Record<string, unknown>, isError =
 	return { type: "tool_result", toolName, toolCallId: "call-1", input, content: [], isError };
 }
 
+/** A tool result carrying an LSP envelope in `details`. */
+function envelopeEvent(toolName: string, details: unknown): unknown {
+	return { ...(resultEvent(toolName, {}) as object), details };
+}
+
+/** A context that records `ui.notify` calls. */
+function uiContext() {
+	const notifications: { message: string; level: string }[] = [];
+	return {
+		ctx: {
+			cwd: "/repo",
+			hasUI: true,
+			ui: {
+				notify: (message: string, level: string) => {
+					notifications.push({ message, level });
+				},
+			},
+		},
+		notifications,
+	};
+}
+
 const CTX = { cwd: "/repo", hasUI: false };
 
 describe("tool_result hook", () => {
@@ -85,5 +107,65 @@ describe("tool_result hook", () => {
 		};
 
 		expect(() => toolResultHandler(state)(resultEvent("edit", { path: "src/a.ts" }), CTX)).not.toThrow();
+	});
+});
+
+describe("binary_missing notifications", () => {
+	function envelope(serverId: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+		return {
+			operation: "lsp",
+			ok: false,
+			status: "binary_missing",
+			resultCount: 0,
+			servers: [serverId],
+			hints: [
+				`Install it with: npm install -g ${serverId}`,
+				`Or override 'cmd' for '${serverId}' in pi-lspconfig.config.ts.`,
+			],
+			...extra,
+		};
+	}
+
+	it("notifies once per server, quoting the install command", () => {
+		const state = createSessionState();
+		const handler = toolResultHandler(state);
+		const { ctx, notifications } = uiContext();
+
+		handler(envelopeEvent("lsp", envelope("pyright")), ctx);
+		handler(envelopeEvent("lsp_diagnostics", envelope("pyright")), ctx);
+
+		expect(notifications).toHaveLength(1);
+		expect(notifications[0]?.message).toContain("pi-lspconfig: pyright is not installed.");
+		expect(notifications[0]?.message).toContain("Install it with: npm install -g pyright");
+		expect(notifications[0]?.level).toBe("warning");
+
+		// A second server is a separate notification, not a suppression.
+		handler(envelopeEvent("lsp", envelope("gopls")), ctx);
+		expect(notifications).toHaveLength(2);
+	});
+
+	it("includes the auto-install failure note when the envelope carries one", () => {
+		const state = createSessionState();
+		const { ctx, notifications } = uiContext();
+
+		toolResultHandler(state)(
+			envelopeEvent("lsp", envelope("gopls", { notes: ["Automatic install exited 1: npm ERR! 404"] })),
+			ctx,
+		);
+
+		expect(notifications[0]?.message).toContain("Automatic install exited 1: npm ERR! 404");
+	});
+
+	it("stays silent without a UI, for other statuses, and for other tools", () => {
+		const state = createSessionState();
+		const handler = toolResultHandler(state);
+		const { ctx, notifications } = uiContext();
+
+		handler(envelopeEvent("lsp", envelope("pyright")), CTX);
+		handler(envelopeEvent("lsp", { status: "success", ok: true, servers: ["pyright"] }), ctx);
+		handler(envelopeEvent("bash", envelope("pyright")), ctx);
+		handler(envelopeEvent("lsp", "not an envelope"), ctx);
+
+		expect(notifications).toEqual([]);
 	});
 });

@@ -87,6 +87,15 @@ untouched file skips jiti entirely. Reload freshness therefore does not depend
 on a `resources_discover` hook — which in any case fires *after* the successor's
 `session_start` and would only clear the cache that start just filled.
 
+### Why auto-install is opt-in and lazy
+
+A missing binary is reported with its `installCommand`; running that command is a
+supply-chain decision the user makes per server with `autoInstall: true`. The
+attempt happens inside `startClient`, on the first tool call that needs the
+server — never at `session_start`, where a config file could otherwise turn
+opening a session into an arbitrary `npm install -g`. Attempts are cached per
+server id, so one failure produces one report rather than one per call.
+
 ## The fleet and `/reload`
 
 `/reload` clears the jiti module cache and re-evaluates this whole module graph.

@@ -3,8 +3,8 @@ import type { LspServerSpec } from "../types.ts";
 /**
  * Go via `gopls`.
  *
- * `go.work` outranks `go.mod` so multi-module workspaces resolve to the
- * workspace root rather than to the first module.
+ * The `go.work`-ordering rationale lives in `docs.notes` so it is rendered into
+ * docs/languages.md from here.
  *
  * @see https://pkg.go.dev/golang.org/x/tools/gopls
  */
@@ -30,6 +30,9 @@ export const gopls: LspServerSpec = {
 	},
 	docs: {
 		description: "Go language server.",
+		notes:
+			"`go.work` outranks `go.mod` so a multi-module workspace resolves to the " +
+			"workspace root rather than to the first module.",
 		url: "https://pkg.go.dev/golang.org/x/tools/gopls",
 	},
 };

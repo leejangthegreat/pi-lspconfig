@@ -1,0 +1,45 @@
+name: Publish
+
+# Tag-driven: pushes to main run ci.yml only. Cut a release with
+#   npm version patch -m "Release %s" && git push --follow-tags
+on:
+  push:
+    tags: ["v*"]
+
+# Trusted publishing: npm exchanges the GitHub OIDC token for a short-lived
+# publish credential. No NPM_TOKEN secret exists or is needed.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Node 22 ships npm 10.x; trusted publishing needs >= 11.5.1.
+      - name: Install an npm that supports trusted publishing
+        run: npm install -g npm@latest
+
+      # A tag that disagrees with package.json would publish the wrong version.
+      # Tag pushes do not trigger ci.yml, so this workflow is its own gate.
+      - name: Tag must match package.json
+        run: |
+          expected="v$(node -p 'require("./package.json").version')"
+          if [ "$expected" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $expected" >&2
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run docs:languages && git diff --exit-code docs/languages.md
+
+      - name: Publish to npm
+        run: npm publish

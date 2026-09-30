@@ -3,9 +3,8 @@ import type { LspServerSpec } from "../types.ts";
 /**
  * Python via Pyright.
  *
- * Settings land under `python.analysis.*` because Pyright reads them from the
- * `workspace/didChangeConfiguration` payload rather than from
- * `initializationOptions`.
+ * The settings-routing rationale lives in `docs.notes` so it is rendered into
+ * docs/languages.md from here.
  *
  * @see https://github.com/microsoft/pyright
  */
@@ -37,6 +36,9 @@ export const pyright: LspServerSpec = {
 	},
 	docs: {
 		description: "Python type checker and language server.",
+		notes:
+			"Settings land under `python.analysis.*` because Pyright reads them from the " +
+			"`workspace/didChangeConfiguration` payload rather than from `initializationOptions`.",
 		url: "https://github.com/microsoft/pyright",
 	},
 };
