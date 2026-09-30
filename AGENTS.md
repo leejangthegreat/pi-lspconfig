@@ -115,7 +115,7 @@ a v22+ binary.
 ## Current state
 
 The extension adapter, config schema, language catalog, types, engine, and tool
-surface are real. Milestones M0, M1, M2, and M3 are complete:
+surface are real. Milestones M0, M1, M2, M3, and M4 are complete:
 
 - **M0** — `util/merge.ts`, `config/resolve.ts`, and `config/load.ts`, plus the
   shared constants in `util/defaults.ts` (relocated out of `config/` so `core/`
@@ -131,10 +131,14 @@ surface are real. Milestones M0, M1, M2, and M3 are complete:
   `lsp_diagnostics` execute bodies, `tools/session.ts` (the lazy `ToolSession`
   the tools read on every call), the `tool_result` dirty-marking hook, and the
   four `/lsp-*` command handlers.
+- **M4** — lifecycle hardening: the mtime-keyed config cache and trust-skip
+  reporting in `config/load.ts`, the reload handoff exercised end to end in
+  `tests/integration/lifecycle.test.ts`, and a `session_shutdown` path that
+  takes no `ctx`.
 
 The tools read live session state through `ToolSession`; nothing long-lived is
-created before the first tool call. Lifecycle/reload hardening (M4), real-server
-smoke tests (M5), and packaging (M6) remain.
+created before the first tool call. Real-server smoke tests (M5) and packaging
+(M6) remain.
 
 Do not add features outside the current milestone. When implementing a stub,
 delete its `Not implemented` throw and update the milestone table in

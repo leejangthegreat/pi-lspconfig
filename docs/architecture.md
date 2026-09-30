@@ -41,13 +41,13 @@ pi starts
   │
   ├─ factory(pi)                       ← declarations only
   │    registerFlag × 2
-  │    on(session_start | session_shutdown | resources_discover | tool_result)
+  │    on(session_start | session_shutdown | tool_result)
   │    registerTool(lsp), registerTool(lsp_diagnostics)
   │    registerCommand × 4
   │
   ├─ session_start
   │    refreshFlags()                  ← CLI values are bound only after load
-  │    loadUserConfig()                ← trust-gated, never throws
+  │    loadUserConfig()                ← trust-gated, mtime-cached, never throws
   │    resolveConfig()  → ServerTable
   │    acquireFleetRegistry()          ← adopts a surviving fleet on reload
   │    getLSPService()
@@ -81,6 +81,12 @@ The factory always runs before project trust is resolved, so
 a server spec can name an arbitrary binary to spawn — that is the feature, which
 is exactly why project-scoped files are gated on trust.
 
+Each validated config is cached by path and mtime, so a file edited between
+sessions is re-read on the next `session_start` (or `/reload`) while an
+untouched file skips jiti entirely. Reload freshness therefore does not depend
+on a `resources_discover` hook — which in any case fires *after* the successor's
+`session_start` and would only clear the cache that start just filled.
+
 ## The fleet and `/reload`
 
 `/reload` clears the jiti module cache and re-evaluates this whole module graph.
@@ -98,7 +104,9 @@ Two consequences drive the design:
    no-op.
 
 After `await ctx.reload()` the old `pi`/`ctx` throw on use. Nothing may hold a
-reference across a reload.
+reference across a reload. Accordingly, `endSession` takes no `ctx` and scrubs
+`state.service`/`state.config`/`state.registry` before awaiting teardown, so the
+defunct runtime holds nothing it could reach the host through.
 
 ## Position handling
 

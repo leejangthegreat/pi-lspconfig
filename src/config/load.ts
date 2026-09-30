@@ -9,9 +9,12 @@
  * Config files are executable code, and a server spec can name an arbitrary
  * binary to spawn. That is the feature — but it is also why project-scoped
  * files are skipped unless the project is trusted.
+ *
+ * A validated config is cached by path *and mtime*: a file edited between
+ * sessions is re-read, an untouched one is not re-transformed by jiti.
  */
 
-import { existsSync } from "node:fs";
+import { statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,12 +42,29 @@ export interface LoadedUserConfig {
 	config: LspconfigUserConfig;
 	/** Files that contributed, lowest precedence first. */
 	files: string[];
+	/**
+	 * Existing project-scoped files that were not loaded because the project is
+	 * untrusted. At most one per directory, matching what would have loaded.
+	 */
+	skipped: string[];
 	/** Files that existed but failed to load or validate. Loading continues past these. */
 	errors: ConfigLoadError[];
 }
 
 /** Loads a config file's default export. Injected so unit tests do no I/O. */
 export type ConfigModuleLoader = (path: string) => Promise<unknown>;
+
+/** The file metadata the loader needs to decide whether a cache entry is fresh. */
+export interface ConfigFileInfo {
+	/** Last modification time in milliseconds, as reported by `fs.stat`. */
+	mtimeMs: number;
+}
+
+/**
+ * Probe a candidate path. Returns `undefined` when the file does not exist,
+ * which is the common case for most of the twenty candidate locations.
+ */
+export type ConfigFileProbe = (path: string) => ConfigFileInfo | undefined;
 
 export interface LoadUserConfigOptions {
 	/** Session working directory. */
@@ -57,8 +77,8 @@ export interface LoadUserConfigOptions {
 	force?: boolean;
 	/** Override the module loader. Defaults to jiti. */
 	loadModule?: ConfigModuleLoader;
-	/** Override the existence check. Defaults to `fs.existsSync`. */
-	fileExists?: (path: string) => boolean;
+	/** Override the filesystem probe. Defaults to `fs.statSync`. */
+	probeFile?: ConfigFileProbe;
 }
 
 /** Recognised config file basenames, in the order they are probed. */
@@ -114,8 +134,14 @@ export function configFileCandidates(cwd: string, homeDir: string): ConfigFileCa
 	return candidates;
 }
 
+/** A validated config plus the mtime it was read at. */
+interface CachedConfig {
+	mtimeMs: number;
+	config: LspconfigUserConfig;
+}
+
 /** Validated configs by resolved path. Cleared by {@link invalidateConfigCache}. */
-const configCache = new Map<string, LspconfigUserConfig>();
+const configCache = new Map<string, CachedConfig>();
 
 /** Lazy jiti instance. Recreated after invalidation to drop its module cache. */
 let jiti: Jiti | undefined;
@@ -141,11 +167,20 @@ async function defaultLoadModule(path: string): Promise<unknown> {
 	return getJiti().import(path, { default: true });
 }
 
+function defaultProbeFile(path: string): ConfigFileInfo | undefined {
+	try {
+		return { mtimeMs: statSync(path).mtimeMs };
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * Drop every cached config module and mtime entry.
  *
- * Called from lifecycle handlers that must never throw, so it stays safe to
- * invoke at any time.
+ * The mtime cache already re-reads an edited file at the next load, so this is
+ * the escape hatch for "re-read everything": used by tests, and safe to call
+ * from anywhere because it cannot throw.
  */
 export function invalidateConfigCache(): void {
 	configCache.clear();
@@ -166,22 +201,31 @@ export async function loadUserConfig(options: LoadUserConfigOptions): Promise<Lo
 	const { cwd, projectTrusted, force = false } = options;
 	const homeDir = options.homeDir ?? homedir();
 	const loadModule = options.loadModule ?? defaultLoadModule;
-	const fileExists = options.fileExists ?? existsSync;
+	const probeFile = options.probeFile ?? defaultProbeFile;
 
 	const files: string[] = [];
+	const skipped: string[] = [];
 	const errors: ConfigLoadError[] = [];
 	const selectedDirs = new Set<string>();
 	let merged: LspconfigUserConfig = {};
 
 	for (const candidate of configFileCandidates(cwd, homeDir)) {
-		if (candidate.scope === "project" && !projectTrusted) continue;
-
 		const dir = dirname(candidate.path);
 		if (selectedDirs.has(dir)) continue;
-		if (!fileExists(candidate.path)) continue;
+
+		const info = probeFile(candidate.path);
+		if (info === undefined) continue;
 		selectedDirs.add(dir);
 
-		let config = force ? undefined : configCache.get(candidate.path);
+		// The file exists but must not be read; report it so the user can see
+		// why their project config had no effect.
+		if (candidate.scope === "project" && !projectTrusted) {
+			skipped.push(candidate.path);
+			continue;
+		}
+
+		const cached = force ? undefined : configCache.get(candidate.path);
+		let config = cached !== undefined && cached.mtimeMs === info.mtimeMs ? cached.config : undefined;
 
 		if (config === undefined) {
 			let raw: unknown;
@@ -201,14 +245,14 @@ export async function loadUserConfig(options: LoadUserConfigOptions): Promise<Lo
 			}
 
 			config = validated.config;
-			configCache.set(candidate.path, config);
+			configCache.set(candidate.path, { mtimeMs: info.mtimeMs, config });
 		}
 
 		files.push(candidate.path);
 		merged = deepMerge(merged, config);
 	}
 
-	return { config: merged, files, errors };
+	return { config: merged, files, skipped, errors };
 }
 
 function errorMessage(error: unknown): string {

@@ -22,6 +22,11 @@
  *  2. **`session_start` never throws.** A broken config file or a missing
  *     binary must not take the session down; failures are reported and the
  *     tools degrade to `status: "error"` / `"binary_missing"`.
+ *
+ * A third rule governs reload: after `session_shutdown` the runtime is stale
+ * and Pi throws on any captured `pi`/`ctx` use, so teardown takes no `ctx` and
+ * scrubs the session state it releases. Config freshness across the boundary
+ * comes from the mtime cache in `config/load.ts`, not from `ctx`.
  */
 
 import { randomUUID } from "node:crypto";
@@ -33,7 +38,7 @@ import type {
 	SessionShutdownEvent,
 	SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
-import { invalidateConfigCache, loadUserConfig } from "../config/load.ts";
+import { loadUserConfig } from "../config/load.ts";
 import { resolveConfig, type ResolvedConfig } from "../config/resolve.ts";
 import {
 	acquireFleetRegistry,
@@ -117,12 +122,22 @@ export async function startSession(
 	const loaded = await loadUserConfig({
 		cwd: ctx.cwd,
 		projectTrusted: ctx.isProjectTrusted(),
-		force: event.reason === "reload",
 	});
 
 	for (const failure of loaded.errors) {
 		state.logger.warn(`config error in ${failure.file}: ${failure.message}`);
 		ctx.ui.notify(`pi-lspconfig: ${failure.file}: ${failure.message}`, "warning");
+	}
+
+	// One notification per session, not one per file: a project with both a
+	// root and a `.pi` config would otherwise nag twice for one decision.
+	if (loaded.skipped.length > 0) {
+		const files = loaded.skipped.join(", ");
+		state.logger.info(`skipped ${loaded.skipped.length} untrusted project config file(s)`);
+		ctx.ui.notify(
+			`pi-lspconfig: ignoring project config (${files}) — the project is not trusted.`,
+			"info",
+		);
 	}
 
 	const resolved = resolveConfig(loaded.config, BUILTIN_SERVERS);
@@ -142,7 +157,7 @@ export async function startSession(
 
 	ctx.ui.setStatus("pi-lspconfig", `${resolved.servers.size} servers`);
 	state.logger.info(
-		`session ready: ${resolved.servers.size} servers, ${loaded.files.length} config file(s)`,
+		`session ready (${event.reason}): ${resolved.servers.size} servers, ${loaded.files.length} config file(s)`,
 	);
 }
 
@@ -151,10 +166,15 @@ export async function startSession(
  *
  * On `reason === "reload"` teardown is deferred so the successor runtime can
  * adopt the warm fleet; otherwise every process is stopped.
+ *
+ * Takes no `ctx` on purpose: this runs after the reload boundary, where Pi
+ * treats a captured context as stale and throws on use.
  */
 export async function endSession(state: SessionState, event: SessionShutdownEvent): Promise<void> {
 	const handoff = event.reason === "reload";
 
+	// Scrub before the await: a successor may claim the fleet while this
+	// teardown is in flight, and the old runtime must hold nothing usable.
 	state.service = undefined;
 	state.config = undefined;
 
@@ -188,12 +208,6 @@ export function installLifecycle(pi: ExtensionAPI, state: SessionState): void {
 		} catch (error) {
 			state.logger.error("session shutdown failed", error);
 		}
-	});
-
-	// Reload re-discovers resources; drop cached config modules so edits to
-	// `pi-lspconfig.config.ts` take effect without restarting pi.
-	pi.on("resources_discover", () => {
-		invalidateConfigCache();
 	});
 
 	// Pi's built-in `edit`/`write` change files behind the language server's

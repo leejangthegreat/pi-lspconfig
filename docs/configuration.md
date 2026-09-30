@@ -23,6 +23,11 @@ file is executable code, and a server spec names a binary to spawn. If the
 project is not trusted, project files are skipped and the built-in configs are
 used; the skip is reported once.
 
+Config files are cached by path and modification time. A file edited between
+sessions is re-read at the next session start — including `/reload` — while an
+untouched file is not re-transformed. A server whose spec changed is restarted;
+one whose spec did not is adopted warm.
+
 ## Minimal example
 
 ```ts

@@ -15,8 +15,10 @@ const HOME = "/home/u";
 
 const modules = new Map<string, unknown>();
 const existing = new Set<string>();
+const mtimes = new Map<string, number>();
 const loadModule = vi.fn(async (path: string) => modules.get(path));
-const fileExists = (path: string) => existing.has(path);
+/** Probe double: `existing` decides existence, `mtimes` the modification time. */
+const probeFile = (path: string) => (existing.has(path) ? { mtimeMs: mtimes.get(path) ?? 1 } : undefined);
 
 const projectFile = (basename = "pi-lspconfig.config.ts") => join(CWD, basename);
 const xdgFile = (basename = "config.ts") => join(HOME, ".config", "pi-lspconfig", basename);
@@ -24,11 +26,12 @@ const homePiFile = (basename = "pi-lspconfig.config.ts") => join(HOME, ".pi", ba
 const cwdPiFile = (basename = "pi-lspconfig.config.ts") => join(CWD, ".pi", basename);
 
 const load = (overrides: Partial<Parameters<typeof loadUserConfig>[0]> = {}) =>
-	loadUserConfig({ cwd: CWD, homeDir: HOME, projectTrusted: true, loadModule, fileExists, ...overrides });
+	loadUserConfig({ cwd: CWD, homeDir: HOME, projectTrusted: true, loadModule, probeFile, ...overrides });
 
 beforeEach(() => {
 	modules.clear();
 	existing.clear();
+	mtimes.clear();
 	loadModule.mockClear();
 	invalidateConfigCache();
 });
@@ -62,7 +65,7 @@ describe("loadUserConfig", () => {
 	it("returns an empty result when no candidate exists", async () => {
 		const loaded = await load();
 
-		expect(loaded).toEqual({ config: {}, files: [], errors: [] });
+		expect(loaded).toEqual({ config: {}, files: [], skipped: [], errors: [] });
 		expect(loadModule).not.toHaveBeenCalled();
 	});
 
@@ -85,7 +88,33 @@ describe("loadUserConfig", () => {
 		const loaded = await load({ projectTrusted: false });
 
 		expect(loaded.files).toEqual([]);
+		expect(loaded.skipped).toEqual([path]);
 		expect(loadModule).not.toHaveBeenCalled();
+	});
+
+	it("reports one skipped file per directory, matching what would have loaded", async () => {
+		const root = projectFile();
+		const sibling = projectFile("pi-lspconfig.config.js");
+		const nested = cwdPiFile();
+		existing.add(root);
+		existing.add(sibling);
+		existing.add(nested);
+
+		const loaded = await load({ projectTrusted: false });
+
+		expect(loaded.skipped).toEqual([root, nested]);
+		expect(loadModule).not.toHaveBeenCalled();
+	});
+
+	it("does not report a global file as skipped when untrusted", async () => {
+		const path = xdgFile();
+		existing.add(path);
+		modules.set(path, { disabledServers: ["gopls"] });
+
+		const loaded = await load({ projectTrusted: false });
+
+		expect(loaded.skipped).toEqual([]);
+		expect(loaded.files).toEqual([path]);
 	});
 
 	it("loads global files even when the project is untrusted", async () => {
@@ -201,6 +230,44 @@ describe("loadUserConfig", () => {
 		await load();
 
 		expect(loadModule).toHaveBeenCalledTimes(1);
+	});
+
+	it("re-reads a file whose mtime changed, and only that file", async () => {
+		const global = xdgFile();
+		const project = projectFile();
+		existing.add(global);
+		existing.add(project);
+		modules.set(global, { defaults: { maxResults: 10 } });
+		modules.set(project, { languageIds: { ".a": "a" } });
+
+		await load();
+		expect(loadModule).toHaveBeenCalledTimes(2); // global + project
+
+		// A newer mtime on the project file invalidates only its cache entry.
+		modules.set(project, { languageIds: { ".b": "b" } });
+		mtimes.set(project, 2);
+
+		const loaded = await load();
+
+		expect(loadModule).toHaveBeenCalledTimes(3);
+		expect(loadModule).toHaveBeenLastCalledWith(project);
+		expect(loaded.config.languageIds).toEqual({ ".b": "b" });
+		expect(loaded.config.defaults).toEqual({ maxResults: 10 });
+	});
+
+	it("reuses the cache while the mtime is unchanged", async () => {
+		const path = projectFile();
+		existing.add(path);
+		modules.set(path, { defaults: { maxResults: 10 } });
+
+		await load();
+		// Different content under the same mtime must not be observed: the file
+		// was not rewritten as far as the filesystem is concerned.
+		modules.set(path, { defaults: { maxResults: 20 } });
+		const loaded = await load();
+
+		expect(loadModule).toHaveBeenCalledTimes(1);
+		expect(loaded.config.defaults).toEqual({ maxResults: 10 });
 	});
 
 	it("re-reads on force and after invalidateConfigCache", async () => {
