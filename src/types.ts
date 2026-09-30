@@ -67,6 +67,14 @@ export interface LspServerSpec {
 	capabilities?: ClientCapabilities;
 	/** Whether the server is usable on a file with no project root. */
 	singleFileSupport?: boolean;
+	/**
+	 * Shell command that installs the server binary.
+	 *
+	 * Quoted verbatim in the `binary_missing` hint so the model (and the user)
+	 * gets an actionable fix rather than a generic "install it". Also the input
+	 * for the opt-in auto-install path and the language docs generator.
+	 */
+	installCommand?: string;
 	/** Handshake timeout. Defaults to `DEFAULT_INITIALIZE_TIMEOUT_MS`. */
 	initializeTimeoutMs?: number;
 	/** Documentation metadata; consumed by the docs generator. */

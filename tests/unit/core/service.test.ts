@@ -168,6 +168,49 @@ describe("createLSPService — fleet keying", () => {
 	});
 });
 
+describe("createLSPService — missing binary", () => {
+	const MISSING = ["pi-lspconfig-definitely-not-on-path"];
+
+	async function envelopeFor(spec: LspServerSpec) {
+		const fake = createFakeSpawn();
+		const service = createLSPService(
+			serviceOptions({ servers: new Map([["fake", spec]]), spawn: fake.spawn }),
+		);
+		try {
+			const envelope = await executeOperation(
+				service,
+				{ operation: "definition", path: FILE_A1, line: 1, character: 1 },
+				{ cwd: BASE, maxResults: 100, logger: SILENT },
+			);
+			return { envelope, fake };
+		} finally {
+			await service.shutdown();
+		}
+	}
+
+	it("names the install command in the hints when the spec declares one", async () => {
+		const { envelope, fake } = await envelopeFor({
+			...SPEC,
+			cmd: MISSING,
+			installCommand: "npm install -g fake-server",
+		});
+
+		expect(envelope.status).toBe("binary_missing");
+		expect(envelope.hints).toContain("Install it with: npm install -g fake-server");
+		// A missing binary is diagnosed before anything is spawned.
+		expect(fake.spawned).toEqual([]);
+	});
+
+	it("falls back to the override hint when the spec declares no install command", async () => {
+		const { envelope } = await envelopeFor({ ...SPEC, cmd: MISSING });
+
+		expect(envelope.status).toBe("binary_missing");
+		expect(envelope.hints).toEqual([
+			"Install it, or override 'cmd' for 'fake' in pi-lspconfig.config.ts.",
+		]);
+	});
+});
+
 describe("getLSPService", () => {
 	it("returns the same instance for the same cwd and table", () => {
 		acquire("r1");

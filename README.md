@@ -6,9 +6,9 @@ through one unified tool.
 
 Built on nvim-lspconfig's config model and pi-lens's tool surface.
 
-> **Status: usable.** Milestones M0–M3 are complete: the tools, diagnostics,
-> and `/lsp-*` commands are live. Lifecycle/reload hardening (M4), real-server
-> smoke tests (M5), and packaging (M6) remain — see [`ROADMAP.md`](ROADMAP.md).
+> **Status: usable.** Milestones M0–M5 are complete: the tools, diagnostics,
+> `/lsp-*` commands, reload hardening, and real-server smoke tests are live.
+> Packaging and the docs generator (M6) remain — see [`ROADMAP.md`](ROADMAP.md).
 
 ## Why
 
@@ -128,6 +128,14 @@ Go (`gopls`). See [`docs/languages.md`](docs/languages.md).
 ```bash
 npm run typecheck
 npm test
+```
+
+The default suite uses a fake language server and needs no toolchain. Smoke
+tests against the real `vtsls`, `pyright`, `rust-analyzer`, and `gopls` are
+gated behind `PI_LSP_REAL=1` and skip per language when a binary is absent:
+
+```bash
+PI_LSP_REAL=1 npx vitest run tests/integration/real-servers
 ```
 
 Requires Node >= 22.19.

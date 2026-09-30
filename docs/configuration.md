@@ -71,12 +71,13 @@ servers: {
 | Field | Type | Meaning |
 | ----- | ---- | ------- |
 | `cmd` | `string[]` or `(ctx) => string[]` | Argv. A function may inspect the resolved root before deciding. |
+| `installCommand` | `string` | Shell command that installs the binary. Quoted in the `binary_missing` hint. |
 | `filetypes` | `string[]` | LSP `languageId`s to handle. |
 | `rootMarkers` | `string[]` | Ordered, highest priority first. |
 | `rootDir` | `(file, ctx) => string \| undefined` | Dynamic root detection. Takes precedence over `rootMarkers`. |
 | `initOptions` | `object` | Sent as `initializationOptions`. |
 | `settings` | `object` | Sent via `workspace/didChangeConfiguration` after `initialized`. |
-| `env` | `Record<string, string>` | Extra environment variables for the spawned process. |
+| `env` | `Record<string, string>` | Extra environment variables, merged over the inherited set (`PATH`, `HOME`, locale, temp, and toolchain locators such as `RUSTUP_HOME` or `GOPATH`). |
 | `capabilities` | `object` | Client capability overrides, merged over the defaults. |
 | `singleFileSupport` | `boolean` | Whether the server works on a file with no project root. |
 | `initializeTimeoutMs` | `number` | Handshake deadline. Defaults to 15000. |

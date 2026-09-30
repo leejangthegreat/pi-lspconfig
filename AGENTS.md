@@ -115,7 +115,7 @@ a v22+ binary.
 ## Current state
 
 The extension adapter, config schema, language catalog, types, engine, and tool
-surface are real. Milestones M0, M1, M2, M3, and M4 are complete:
+surface are real. Milestones M0, M1, M2, M3, M4, and M5 are complete:
 
 - **M0** — `util/merge.ts`, `config/resolve.ts`, and `config/load.ts`, plus the
   shared constants in `util/defaults.ts` (relocated out of `config/` so `core/`
@@ -135,10 +135,19 @@ surface are real. Milestones M0, M1, M2, M3, and M4 are complete:
   reporting in `config/load.ts`, the reload handoff exercised end to end in
   `tests/integration/lifecycle.test.ts`, and a `session_shutdown` path that
   takes no `ctx`.
+- **M5** — real-server smoke tests: `tests/integration/real-servers.test.ts`
+  (gated behind `PI_LSP_REAL=1`, per-language skips, a CI-only presence guard,
+  and the usual PID sweep) against the fixtures in `tests/fixtures/real/`;
+  `.github/workflows/ci.yml` installs the four toolchains. Supporting changes:
+  `installCommand` on `LspServerSpec` (quoted in `binary_missing` hints),
+  push-only diagnostics — `DEFAULT_CLIENT_CAPABILITIES` no longer advertises
+  `textDocument.diagnostic`, which the engine never requests — and toolchain
+  locators (`CARGO_HOME`, `RUSTUP_HOME`, `GOPATH`, …) added to
+  `INHERITED_ENV_ALLOWLIST`, without which a rustup-proxied `rust-analyzer`
+  cannot find its installation.
 
 The tools read live session state through `ToolSession`; nothing long-lived is
-created before the first tool call. Real-server smoke tests (M5) and packaging
-(M6) remain.
+created before the first tool call. Packaging (M6) remains.
 
 Do not add features outside the current milestone. When implementing a stub,
 delete its `Not implemented` throw and update the milestone table in

@@ -210,7 +210,7 @@ function raceExit(exited: Promise<number | null>, ms: number): Promise<boolean> 
 }
 
 /** Build the child environment from the allowlist plus `extra`. */
-function buildEnv(extra?: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
+export function buildEnv(extra?: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
 	const env: NodeJS.ProcessEnv = {};
 	for (const key of INHERITED_ENV_ALLOWLIST) {
 		const value = process.env[key];

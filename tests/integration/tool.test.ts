@@ -177,6 +177,24 @@ describe("lsp tool against a spawned fake server", () => {
 		// The failure is recorded without ever spawning a process.
 		expect(service.status()[0]).toMatchObject({ state: "failed", pid: undefined });
 	});
+
+	it("renders the spec's install command in the binary_missing hints", async () => {
+		const service = createService({
+			...specFor([], ["pi-lspconfig-definitely-not-on-path", "--stdio"]),
+			installCommand: "npm install -g fake-server",
+		});
+
+		const result = await runLsp(service, {
+			operation: "definition",
+			path: "source.ts",
+			line: 1,
+			character: 1,
+		});
+
+		expect(result.details.status).toBe("binary_missing");
+		expect(result.details.hints).toContain("Install it with: npm install -g fake-server");
+		expect(textOf(result)).toContain("hint: Install it with: npm install -g fake-server");
+	});
 });
 
 describe("lsp_diagnostics against a spawned fake server", () => {

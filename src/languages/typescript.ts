@@ -12,6 +12,7 @@ import type { LspServerSpec } from "../types.ts";
 export const vtsls: LspServerSpec = {
 	id: "vtsls",
 	cmd: ["vtsls", "--stdio"],
+	installCommand: "npm install -g @vtsls/language-server typescript",
 	filetypes: ["javascript", "javascriptreact", "typescript", "typescriptreact"],
 	rootMarkers: ["tsconfig.json", "jsconfig.json", "package.json", ".git"],
 	singleFileSupport: true,

@@ -11,6 +11,7 @@ import type { LspServerSpec } from "../types.ts";
 export const rustAnalyzer: LspServerSpec = {
 	id: "rust-analyzer",
 	cmd: ["rust-analyzer"],
+	installCommand: "rustup component add rust-analyzer",
 	filetypes: ["rust"],
 	rootMarkers: ["Cargo.toml", "Cargo.lock", "rust-project.json", ".git"],
 	singleFileSupport: true,

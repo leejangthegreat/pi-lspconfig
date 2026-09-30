@@ -55,6 +55,12 @@ export const CODE_ACTION_KINDS: readonly string[] = [
  * Editor Services and some Java tooling) crash or fail the handshake when a
  * sub-capability they expect is absent. Advertising everything costs nothing
  * because servers only use what they support.
+ *
+ * One deliberate omission: pull diagnostics (`textDocument.diagnostic` and
+ * `workspace.diagnostics`). The engine only consumes pushed
+ * `textDocument/publishDiagnostics`, and a server that sees pull support is
+ * free to switch to a path we never request — producing silently empty
+ * results. Advertise pull again only when the pull request is implemented.
  */
 export const DEFAULT_CLIENT_CAPABILITIES: ClientCapabilities = {
 	general: {
@@ -77,7 +83,6 @@ export const DEFAULT_CLIENT_CAPABILITIES: ClientCapabilities = {
 			symbolKind: { valueSet: [...ALL_SYMBOL_KINDS] },
 		},
 		executeCommand: { dynamicRegistration: false },
-		diagnostics: { refreshSupport: true },
 	},
 	textDocument: {
 		synchronization: {
@@ -129,11 +134,21 @@ export const DEFAULT_CLIENT_CAPABILITIES: ClientCapabilities = {
 			honorsChangeAnnotations: true,
 		},
 		callHierarchy: { dynamicRegistration: false },
-		diagnostic: { dynamicRegistration: false, relatedDocumentSupport: false },
 	},
 };
 
-/** Environment variables forwarded from the parent process to a spawned server. */
+/**
+ * Environment variables forwarded from the parent process to a spawned server.
+ *
+ * The list is deliberately narrow: a language server is a third-party binary,
+ * and the agent's environment may carry credentials it has no business seeing.
+ * `spec.env` is the escape hatch for anything else.
+ *
+ * The toolchain locators are not hygiene, they are how the binary finds its own
+ * installation: a rustup-installed `rust-analyzer` is a proxy that fails
+ * without `RUSTUP_HOME`/`CARGO_HOME` when they are non-default, `gopls` shells
+ * out to the go tool, and pyright looks for an interpreter in a virtualenv.
+ */
 export const INHERITED_ENV_ALLOWLIST: readonly string[] = [
 	"PATH",
 	"HOME",
@@ -147,4 +162,15 @@ export const INHERITED_ENV_ALLOWLIST: readonly string[] = [
 	"ComSpec",
 	"APPDATA",
 	"LOCALAPPDATA",
+	// Toolchain locations.
+	"CARGO_HOME",
+	"RUSTUP_HOME",
+	"RUSTUP_TOOLCHAIN",
+	"GOPATH",
+	"GOROOT",
+	"GOFLAGS",
+	"GOMODCACHE",
+	"VIRTUAL_ENV",
+	"CONDA_PREFIX",
+	"PYTHONPATH",
 ];

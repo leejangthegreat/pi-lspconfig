@@ -11,6 +11,7 @@ import type { LspServerSpec } from "../types.ts";
 export const gopls: LspServerSpec = {
 	id: "gopls",
 	cmd: ["gopls"],
+	installCommand: "go install golang.org/x/tools/gopls@latest",
 	filetypes: ["go", "gomod", "gowork", "gotmpl"],
 	rootMarkers: ["go.work", "go.mod", "go.sum", ".git"],
 	singleFileSupport: false,

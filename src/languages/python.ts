@@ -12,6 +12,7 @@ import type { LspServerSpec } from "../types.ts";
 export const pyright: LspServerSpec = {
 	id: "pyright",
 	cmd: ["pyright-langserver", "--stdio"],
+	installCommand: "npm install -g pyright",
 	filetypes: ["python"],
 	rootMarkers: [
 		"pyrightconfig.json",

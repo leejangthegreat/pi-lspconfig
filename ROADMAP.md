@@ -13,7 +13,7 @@ start `Mn+1` until every acceptance criterion for `Mn` passes.
 | M2 | Fleet, roots, operations | ✅ done | no |
 | M3 | Tool surface + extension wiring | ✅ done | no |
 | M4 | Lifecycle, reload, trust hardening | ✅ done | no |
-| M5 | Real-server smoke tests | ⬜ not started | **yes** |
+| M5 | Real-server smoke tests | ✅ done | **yes** |
 | M6 | Packaging and docs | ⬜ not started | no |
 
 Legend: ⬜ not started · 🟨 in progress · ✅ done

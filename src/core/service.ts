@@ -181,9 +181,7 @@ export function createLSPService(options: LSPServiceOptions): LSPService {
 					throw new LSPServiceError(
 						"binary_missing",
 						`${spec.id}: '${argv[0] ?? ""}' was not found on PATH.`,
-						[
-							`Install it, or override 'cmd' for '${spec.id}' in pi-lspconfig.config.ts.`,
-						],
+						missingBinaryHints(spec),
 					);
 				}
 
@@ -493,6 +491,20 @@ function connectionOf(entry: ClientEntry): LSPConnection {
 async function resolveArgv(spec: LspServerSpec, ctx: LaunchContext): Promise<string[]> {
 	const cmd = typeof spec.cmd === "function" ? await spec.cmd(ctx) : spec.cmd;
 	return [...cmd];
+}
+
+/**
+ * Hints for a `binary_missing` failure.
+ *
+ * The install command is the actionable half; the `cmd` override hint stays
+ * because it is the only fix for a server the user added themselves, and the
+ * only hint at all for a spec that declares no `installCommand`.
+ */
+function missingBinaryHints(spec: LspServerSpec): string[] {
+	const overrideHint = `Or override 'cmd' for '${spec.id}' in pi-lspconfig.config.ts.`;
+	return spec.installCommand === undefined
+		? [`Install it, or override 'cmd' for '${spec.id}' in pi-lspconfig.config.ts.`]
+		: [`Install it with: ${spec.installCommand}`, overrideHint];
 }
 
 /** Stable key for a `(serverId, root)` pair. */
